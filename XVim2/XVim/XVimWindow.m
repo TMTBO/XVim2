@@ -512,6 +512,12 @@
     [XVim.instance.marks addToJumpListWithMark:mark KeepJumpMarkIndex:motion.keepJumpMarkIndex];
 }
 
+- (void)afterMotion:(XVimMotion *)motion {
+    if (XVim.instance.options.relativenumber) {
+        [self handleRelativeNumbers];
+    }
+}
+
 #pragma mark - Relative numbers
 
 - (void)handleRelativeNumbers
@@ -550,14 +556,21 @@
         CGRect frame = [layer frame];
         frame.size.width = width;
         frame.origin.x = 0;
-        NSString *text = [self getRelativeLineTextWithFrame:frame
-                                               firstPadding:firstPadding
-                                                    padding:padding
-                                            currentPosition:currentPositionZeroIndexed];
-        CGColorRef textColor = [text isEqualToString:@"0"]
-            ? [fontColor CGColor]
-            : [[fontColor colorWithAlphaComponent:0.5] CGColor];
+        var textColor = nil;
+        var showLineNumber = [self getRelativeLineWithFrame:frame
+                                                     firstPadding:firstPadding
+                                                          padding:padding
+                                                  currentPosition:currentPositionZeroIndexed];
+        if (showLineNumber  == 0) {
+            textColor = fontColor.CGColor;
+            if (XVim.instance.options.number) {
+                showLineNumber = currentPositionZeroIndexed + 1;
+            }
+        } else {
+            textColor = [fontColor colorWithAlphaComponent:0.5].CGColor;
+        }
 
+        let text = [NSString stringWithFormat:@"%ld", showLineNumber];
         CATextLayer *label = [self createLineNumberTextLabelWithFont:font
                                                            fontColor:textColor
                                                                frame:frame
@@ -621,17 +634,15 @@
     return label;
 }
 
-- (NSString *)getRelativeLineTextWithFrame:(CGRect)frame
-                              firstPadding:(CGFloat)firstPadding
-                                   padding:(CGFloat)padding
-                           currentPosition:(NSInteger)currentPosition
+- (NSInteger)getRelativeLineWithFrame:(CGRect)frame
+                         firstPadding:(CGFloat)firstPadding
+                              padding:(CGFloat)padding
+                      currentPosition:(NSInteger)currentPosition
 {
     CGFloat currentNumberF = (frame.origin.y - firstPadding) / (frame.size.height + padding);
     NSInteger currentNumber = lroundf(currentNumberF);
-//    NSLog(@"currentNumberF: %f, currentNumber: %ld, frame: %@", currentNumberF, currentNumber, NSStringFromRect(frame));
     NSInteger relativeLineNumber = llabs(currentNumber - currentPosition);
-    NSString *text = [NSString stringWithFormat: @"%ld", relativeLineNumber];
-    return text;
+    return relativeLineNumber;
 }
 
 @end
